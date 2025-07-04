@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, MetaData, Table, select, func, text
 from flask_cors import CORS
-
+from datetime import datetime, time
 # Configuración de la app
 app = Flask(__name__)
 CORS(app)
@@ -16,20 +16,26 @@ engine = create_engine(DATABASE_URL, echo=True)
 meta = MetaData()
 meta.reflect(bind=engine)
 # Tablas
-Usuario      = meta.tables['Usuario']
-Cliente      = meta.tables['Cliente']
-Trabajador   = meta.tables['Trabajador']
-Repartidor   = meta.tables['Repartidor']
-Administrador= meta.tables['Administrador']
-Menu         = meta.tables['Menu']
-Plato        = meta.tables['Plato']
-Pertenece    = meta.tables['Pertenece']
-ZonaEntrega  = meta.tables['ZonaEntrega']
-Pedido       = meta.tables['Pedido']
-Tiene        = meta.tables['Tiene']
-Hace         = meta.tables['Hace']
-Vive         = meta.tables['Vive']
-Cubre        = meta.tables['Cubre']
+Usuario      = meta.tables['usuario']  # Cambio aquí: 'usuario' en minúsculas
+Cliente      = meta.tables['cliente']  # Igual para otras tablas
+Trabajador   = meta.tables['trabajador']
+Repartidor   = meta.tables['repartidor']
+Administrador= meta.tables['administrador']
+Menu         = meta.tables['menu']
+Plato        = meta.tables['plato']
+Pertenece    = meta.tables['pertenece']
+ZonaEntrega  = meta.tables['zonaentrega']
+Pedido       = meta.tables['pedido']
+Tiene        = meta.tables['tiene']
+Hace         = meta.tables['hace']
+Vive         = meta.tables['vive']
+Cubre        = meta.tables['cubre']
+
+# Función para convertir time y datetime a formato de cadena
+def convert_to_str(value):
+    if isinstance(value, (datetime, time)):
+        return value.strftime('%Y-%m-%d %H:%M:%S')  # Ajusta el formato a tu necesidad
+    return value
 
 # Helper de paginación
 def paginate(table):
@@ -39,8 +45,17 @@ def paginate(table):
     with engine.connect() as conn:
         total = conn.execute(select(func.count()).select_from(table)).scalar()
         rows = conn.execute(select(table).limit(limit).offset(offset)).fetchall()
+    
+    # Convertir cada fila a un diccionario
+    data = []
+    for row in rows:
+        row_dict = dict(zip([column.name for column in table.columns], row))
+        # Convertir los valores a strings si son de tipo time o datetime
+        row_dict = {key: convert_to_str(value) for key, value in row_dict.items()}
+        data.append(row_dict)
+    
     return jsonify({
-        'data': [dict(r) for r in rows],
+        'data': data,
         'meta': {'page': page, 'limit': limit, 'total': total}
     })
 
@@ -52,7 +67,12 @@ def list_usuarios(): return paginate(Usuario)
 def get_usuario(id):
     with engine.connect() as conn:
         row = conn.execute(select(Usuario).where(Usuario.c.id_usuario == id)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
+    if row:
+        # Convertir a diccionario de forma explícita
+        return jsonify({'data': dict(row._mapping)})
+    else:
+        return ('', 404)
+
 
 @app.route('/api/v1/clientes', methods=['GET'])
 def list_clientes(): return paginate(Cliente)
@@ -60,15 +80,21 @@ def list_clientes(): return paginate(Cliente)
 def get_cliente(id):
     with engine.connect() as conn:
         row = conn.execute(select(Cliente).where(Cliente.c.id_usuario == id)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
-
+    if row:
+        return jsonify({'data': dict(row._mapping)})  # Usar _mapping para convertir a diccionario
+    else:
+        return ('', 404)
+    
 @app.route('/api/v1/trabajadores', methods=['GET'])
 def list_trabajadores(): return paginate(Trabajador)
 @app.route('/api/v1/trabajadores/<int:id>', methods=['GET'])
 def get_trabajador(id):
     with engine.connect() as conn:
         row = conn.execute(select(Trabajador).where(Trabajador.c.id_usuario == id)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
+    if row:
+        return jsonify({'data': dict(row._mapping)})  # Usar _mapping para convertir a diccionario
+    else:
+        return ('', 404)
 
 @app.route('/api/v1/administradores', methods=['GET'])
 def list_administradores(): return paginate(Administrador)
@@ -76,15 +102,21 @@ def list_administradores(): return paginate(Administrador)
 def get_administrador(id):
     with engine.connect() as conn:
         row = conn.execute(select(Administrador).where(Administrador.c.id_usuario == id)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
-
+    if row:
+        return jsonify({'data': dict(row._mapping)})  # Usar _mapping para convertir a diccionario
+    else:
+        return ('', 404)
+    
 @app.route('/api/v1/platos', methods=['GET'])
 def list_platos(): return paginate(Plato)
 @app.route('/api/v1/platos/<int:id>', methods=['GET'])
 def get_plato(id):
     with engine.connect() as conn:
         row = conn.execute(select(Plato).where(Plato.c.id_plato == id)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
+    if row:
+        return jsonify({'data': dict(row._mapping)})  # Usar _mapping para convertir a diccionario
+    else:
+        return ('', 404)
 
 @app.route('/api/v1/menus', methods=['GET'])
 def list_menus(): return paginate(Menu)
@@ -92,23 +124,37 @@ def list_menus(): return paginate(Menu)
 def get_menu(id):
     with engine.connect() as conn:
         row = conn.execute(select(Menu).where(Menu.c.id_menu == id)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
+    if row:
+        return jsonify({'data': dict(row._mapping)})  # Usar _mapping para convertir a diccionario
+    else:
+        return ('', 404)
 
 @app.route('/api/v1/pedidos', methods=['GET'])
-def list_pedidos(): return paginate(Pedido)
+def list_pedidos():
+    return paginate(Pedido)
+
 @app.route('/api/v1/pedidos/<int:id>', methods=['GET'])
 def get_pedido(id):
     with engine.connect() as conn:
         row = conn.execute(select(Pedido).where(Pedido.c.id_pedido == id)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
-
+    if row:
+        # Convertir los valores a strings si son de tipo time o datetime
+        row_dict = dict(row._mapping)
+        row_dict = {key: convert_to_str(value) for key, value in row_dict.items()}
+        return jsonify({'data': row_dict})
+    else:
+        return ('', 404)
+    
 @app.route('/api/v1/zonas', methods=['GET'])
 def list_zonas(): return paginate(ZonaEntrega)
 @app.route('/api/v1/zonas/<string:nombre>', methods=['GET'])
 def get_zona(nombre):
     with engine.connect() as conn:
         row = conn.execute(select(ZonaEntrega).where(ZonaEntrega.c.nombre == nombre)).first()
-    return (jsonify({'data': dict(row)}) if row else ('', 404))
+    if row:
+        return jsonify({'data': dict(row._mapping)})  # Usar _mapping para convertir a diccionario
+    else:
+        return ('', 404)
 
 # Endpoints de dashboard (consultas estrella)
 @app.route('/api/v1/dashboard/platos-populares', methods=['GET'])
@@ -136,13 +182,18 @@ def platos_populares():
       AND pd.estado = 'Entregado'
     GROUP BY p.id_plato, p.nombre, p.categoria, p.precio, 
              u.nombre, u.apellido, pd.zona_entrega
-    HAVING COUNT(DISTINCT pd.id_pedido) >= 5
+    HAVING COUNT(DISTINCT pd.id_pedido) >= 1
     ORDER BY total_pedidos DESC, calificacion_promedio DESC
     LIMIT 15;
     """)
+
+    # Ejecutar la consulta
     with engine.connect() as conn:
         rows = conn.execute(sql).fetchall()
-    return jsonify([dict(r) for r in rows])
+
+    # Convertir las filas a diccionarios usando _mapping
+    return jsonify([dict(row._mapping) for row in rows])
+
 
 @app.route('/api/v1/dashboard/rendimiento-zonas', methods=['GET'])
 def rendimiento_zonas():
@@ -163,7 +214,7 @@ def rendimiento_zonas():
             EXTRACT(EPOCH FROM (pd.hora_entrega - pd.hora_entrega_estimada)) / 60
         ), 2) AS diferencia_estimado_real,
         COUNT(DISTINCT c.id_usuario) AS repartidores_activos,
-        STRING_AGG(DISTDistinct u.nombre || ' ' || u.apellido, ', ') AS nombres_repartidores
+        STRING_AGG(DISTINCT u.nombre || ' ' || u.apellido, ', ') AS nombres_repartidores
     FROM Pedido pd
     JOIN ZonaEntrega ze ON pd.zona_entrega = ze.nombre
     JOIN Cubre c ON pd.zona_entrega = c.zona_entrega
@@ -176,9 +227,19 @@ def rendimiento_zonas():
     HAVING COUNT(pd.id_pedido) >= 5
     ORDER BY porcentaje_exito DESC, tiempo_promedio_minutos ASC;
     """)
+    # Ejecutar la consulta
     with engine.connect() as conn:
         rows = conn.execute(sql).fetchall()
-    return jsonify([dict(r) for r in rows])
+
+    # Convertir las filas a diccionarios y manejar valores de tipo time/datetime
+    data = []
+    for row in rows:
+        row_dict = dict(row._mapping)
+        # Convertir las fechas y horas a cadenas
+        row_dict = {key: convert_to_str(value) for key, value in row_dict.items()}
+        data.append(row_dict)
+
+    return jsonify(data)
 
 @app.route('/api/v1/dashboard/top-repartidores', methods=['GET'])
 def top_repartidores():
@@ -219,7 +280,11 @@ def top_repartidores():
     """)
     with engine.connect() as conn:
         rows = conn.execute(sql).fetchall()
-    return jsonify([dict(r) for r in rows])
+
+    # Convertir las filas a diccionarios usando _mapping
+    return jsonify([dict(row._mapping) for row in rows])
+
+
 
 @app.route('/api/v1/dashboard/clientes-activos', methods=['GET'])
 def clientes_activos():
@@ -262,7 +327,10 @@ def clientes_activos():
     """)
     with engine.connect() as conn:
         rows = conn.execute(sql).fetchall()
-    return jsonify([dict(r) for r in rows])
+
+    # Convertir las filas a diccionarios usando _mapping
+    return jsonify([dict(row._mapping) for row in rows])
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    
