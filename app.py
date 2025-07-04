@@ -200,18 +200,7 @@ def platos_populares():
 
 @app.route('/api/v1/dashboard/rendimiento-zonas', methods=['GET'])
 def rendimiento_zonas():
-    # Obtener los parámetros de fecha de la URL
-    start_date = request.args.get('start_date', default='2025-01-01')  # Valor por defecto si no se pasa
-    end_date = request.args.get('end_date', default='2025-12-31')  # Valor por defecto si no se pasa
-
-    # Asegurarse de que las fechas estén en el formato correcto
-    try:
-        start_date = datetime.strptime(start_date, '%Y-%m-%d')
-        end_date = datetime.strptime(end_date, '%Y-%m-%d')
-    except ValueError:
-        return jsonify({"error": "Fecha inválida. Usa el formato 'YYYY-MM-DD'."}), 400
-
-    # SQL para obtener el rendimiento de las zonas, utilizando las fechas recibidas
+    # SQL para obtener el rendimiento de las zonas con filtro de los últimos 30 días
     sql = text("""
     SELECT 
         pd.zona_entrega,
@@ -234,7 +223,7 @@ def rendimiento_zonas():
     JOIN ZonaEntrega ze ON pd.zona_entrega = ze.nombre
     JOIN Cubre c ON pd.zona_entrega = c.zona_entrega
     JOIN Usuario u ON c.id_usuario = u.id_usuario
-    WHERE pd.fecha BETWEEN :start_date AND :end_date
+    WHERE pd.fecha >= CURRENT_DATE - INTERVAL '30 days'
       AND pd.hora_salida IS NOT NULL
       AND pd.hora_entrega IS NOT NULL
       AND pd.hora_entrega_estimada IS NOT NULL
@@ -243,9 +232,9 @@ def rendimiento_zonas():
     ORDER BY porcentaje_exito DESC, tiempo_promedio_minutos ASC;
     """)
 
-    # Ejecutar la consulta usando las fechas obtenidas
+    # Ejecutar la consulta
     with engine.connect() as conn:
-        rows = conn.execute(sql, {'start_date': start_date, 'end_date': end_date}).fetchall()
+        rows = conn.execute(sql).fetchall()
 
     # Convertir las filas a diccionarios y manejar valores de tipo time/datetime
     data = []
@@ -255,6 +244,7 @@ def rendimiento_zonas():
         data.append(row_dict)
 
     return jsonify(data)
+
 
 
 @app.route('/api/v1/dashboard/top-repartidores', methods=['GET'])
