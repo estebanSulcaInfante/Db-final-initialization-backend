@@ -1,9 +1,12 @@
 import os
 from flask import Flask, jsonify, request
 from sqlalchemy import create_engine, MetaData, Table, select, func, text
+from flask_cors import CORS
 
 # Configuración de la app
 app = Flask(__name__)
+CORS(app)
+
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     raise RuntimeError("Define la variable de entorno DATABASE_URL con tu conexión a Postgres")
