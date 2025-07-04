@@ -10,6 +10,9 @@ CORS(app)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     raise RuntimeError("Define la variable de entorno DATABASE_URL con tu conexión a Postgres")
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 engine = create_engine(DATABASE_URL, echo=True)
 
 # Reflexión de esquema existente
